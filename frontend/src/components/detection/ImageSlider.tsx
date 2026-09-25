@@ -4,10 +4,12 @@ import { Columns, SplitSquareVertical } from 'lucide-react';
 interface ImageSliderProps {
   beforeImage: string;
   afterImage: string;
-  beforeDate: string;
-  afterDate: string;
-  changedAreaSqM: number;
-  changeType: string;
+  beforeDate?: string;
+  afterDate?: string;
+  beforeLabel?: string;
+  afterLabel?: string;
+  changedAreaSqM?: number;
+  changeType?: string;
 }
 
 export const ImageSlider: React.FC<ImageSliderProps> = ({
@@ -15,6 +17,8 @@ export const ImageSlider: React.FC<ImageSliderProps> = ({
   afterImage,
   beforeDate,
   afterDate,
+  beforeLabel,
+  afterLabel,
   changedAreaSqM,
   changeType
 }) => {
@@ -22,6 +26,9 @@ export const ImageSlider: React.FC<ImageSliderProps> = ({
   const [viewMode, setViewMode] = useState<'slider' | 'side-by-side'>('slider');
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+
+  const labelBefore = beforeLabel || beforeDate || 'Jan 2025 (Baseline)';
+  const labelAfter = afterLabel || afterDate || 'Apr 2025 (Encroachment)';
 
   const handlePointerDown = () => {
     isDragging.current = true;
@@ -44,36 +51,36 @@ export const ImageSlider: React.FC<ImageSliderProps> = ({
       {/* Controls Bar */}
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center space-x-2">
-          <span className="font-semibold text-slate-200">Satellite Change Analysis</span>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
-            {changeType} (+{changedAreaSqM} m²)
-          </span>
+          <span className="font-bold text-slate-800">Satellite Change Analysis</span>
+          {changeType && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold">
+              {changeType} {changedAreaSqM ? `(+${changedAreaSqM} m²)` : ''}
+            </span>
+          )}
         </div>
-        <div className="flex items-center space-x-1 bg-slate-900 border border-slate-700/80 rounded p-0.5">
+        <div className="flex items-center space-x-1 bg-slate-100 border border-slate-200 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode('slider')}
             className={`p-1 rounded text-xs flex items-center space-x-1 ${
-              viewMode === 'slider' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+              viewMode === 'slider' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
             title="Split Slider Mode"
           >
             <SplitSquareVertical className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-medium hidden sm:inline">Slider</span>
           </button>
           <button
             onClick={() => setViewMode('side-by-side')}
             className={`p-1 rounded text-xs flex items-center space-x-1 ${
-              viewMode === 'side-by-side' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+              viewMode === 'side-by-side' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
-            title="Side-by-Side Comparison"
+            title="Side-by-Side Mode"
           >
             <Columns className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-medium hidden sm:inline">Side-by-Side</span>
           </button>
         </div>
       </div>
 
-      {/* Main View Area */}
+      {/* Main Visualizer Area */}
       {viewMode === 'slider' ? (
         <div
           ref={containerRef}
@@ -81,72 +88,73 @@ export const ImageSlider: React.FC<ImageSliderProps> = ({
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
           onPointerMove={handlePointerMove}
-          className="relative w-full h-56 md:h-64 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 cursor-ew-resize select-none touch-none"
+          className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-300 shadow-inner select-none cursor-ew-resize bg-slate-100"
         >
-          {/* After Image (Background) */}
+          {/* AFTER Image (Full background) */}
           <img
             src={afterImage}
-            alt="After satellite observation"
+            alt="After change observation"
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           />
 
-          {/* Before Image (Clipped Overlay) */}
+          {/* BEFORE Image (Clipped overlay) */}
           <div
-            className="absolute inset-y-0 left-0 overflow-hidden"
+            className="absolute inset-0 overflow-hidden pointer-events-none"
             style={{ width: `${sliderPosition}%` }}
           >
             <img
               src={beforeImage}
-              alt="Before satellite observation"
-              className="absolute inset-0 w-full h-full object-cover max-w-none pointer-events-none"
+              alt="Before change observation"
+              className="absolute inset-0 w-full h-full object-cover max-w-none"
               style={{
                 width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%'
               }}
             />
           </div>
 
-          {/* Divider Line & Handle */}
+          {/* Slider Divider Line */}
           <div
-            className="absolute top-0 bottom-0 w-0.5 bg-sky-400 pointer-events-none shadow-[0_0_8px_rgba(56,189,248,0.8)]"
+            className="absolute top-0 bottom-0 w-0.5 bg-white shadow-xl pointer-events-none z-10"
             style={{ left: `${sliderPosition}%` }}
           >
-            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-sky-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-[9px] font-bold">
-              ↔
+            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-300 shadow-lg flex items-center justify-center text-slate-700">
+              <SplitSquareVertical className="w-3.5 h-3.5 text-blue-600" />
             </div>
           </div>
 
-          {/* Badges */}
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-slate-900/90 text-sky-300 text-[10px] font-mono border border-sky-500/30 backdrop-blur-sm">
-            BEFORE: {beforeDate}
+          {/* Overlay Labels */}
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono text-white pointer-events-none z-10">
+            {labelBefore}
           </div>
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-900/90 text-rose-300 text-[10px] font-mono border border-rose-500/30 backdrop-blur-sm">
-            AFTER: {afterDate}
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-rose-600/90 text-[10px] font-mono text-white font-bold pointer-events-none z-10">
+            {labelAfter}
           </div>
         </div>
       ) : (
         /* Side by Side Mode */
         <div className="grid grid-cols-2 gap-2">
-          <div className="relative rounded-lg overflow-hidden border border-slate-700 h-48 bg-slate-950">
-            <img src={beforeImage} alt="Before observation" className="w-full h-full object-cover" />
-            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-slate-900/90 text-sky-300 text-[10px] font-mono border border-sky-500/30">
-              BEFORE: {beforeDate}
+          <div className="relative h-48 rounded-xl overflow-hidden border border-slate-200">
+            <img
+              src={beforeImage}
+              alt="Before observation"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-white">
+              {labelBefore}
             </div>
           </div>
-          <div className="relative rounded-lg overflow-hidden border border-slate-700 h-48 bg-slate-950">
-            <img src={afterImage} alt="After observation" className="w-full h-full object-cover" />
-            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-slate-900/90 text-rose-300 text-[10px] font-mono border border-rose-500/30">
-              AFTER: {afterDate}
+          <div className="relative h-48 rounded-xl overflow-hidden border border-rose-300 ring-2 ring-rose-400/30">
+            <img
+              src={afterImage}
+              alt="After observation"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-rose-600 text-[9px] font-mono text-white font-bold">
+              {labelAfter}
             </div>
           </div>
         </div>
       )}
-
-      {/* Interactive Helper Text */}
-      <p className="text-[10px] text-slate-400 text-center">
-        {viewMode === 'slider'
-          ? 'Drag the slider handle left/right to inspect construction footprint expansion against baseline.'
-          : 'Dual synchronized view of the monitored parcel boundary.'}
-      </p>
     </div>
   );
 };

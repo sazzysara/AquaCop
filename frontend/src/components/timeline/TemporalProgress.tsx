@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ObservationProgress } from '../../types';
-import { History, TrendingUp, AlertTriangle } from 'lucide-react';
+import { History, TrendingUp } from 'lucide-react';
 
 interface TemporalProgressProps {
   timeline: ObservationProgress[];
@@ -21,40 +21,40 @@ export const TemporalProgress: React.FC<TemporalProgressProps> = ({ timeline }) 
   const maxArea = Math.max(...timeline.map(t => t.changeAreaSqM), 1);
 
   return (
-    <div className="space-y-3 bg-slate-950/70 border border-slate-800 rounded-lg p-3">
+    <div className="space-y-3 bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <History className="w-4 h-4 text-amber-400" />
-          <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
+          <History className="w-4 h-4 text-blue-600" />
+          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
             Temporal Progression Model
           </h4>
         </div>
-        <div className="flex items-center space-x-1 text-[10px] text-amber-400 font-medium">
+        <div className="flex items-center space-x-1 text-[10px] text-blue-600 font-bold">
           <TrendingUp className="w-3 h-3" />
           <span>Persistent Growth Tracked</span>
         </div>
       </div>
 
-      {/* Progression Flow Summary (0 m² → 85 m² → 210 m² → 420 m²) */}
-      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded p-2 text-xs">
-        <span className="text-[11px] font-semibold text-slate-400">Change Footprint:</span>
-        <div className="flex items-center space-x-1.5 font-mono text-xs font-bold text-slate-200 overflow-x-auto">
+      {/* Progression Flow Summary */}
+      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-2 text-xs">
+        <span className="text-[11px] font-semibold text-slate-500">Change Footprint:</span>
+        <div className="flex items-center space-x-1.5 font-mono text-xs font-bold text-slate-800 overflow-x-auto">
           {timeline.map((obs, idx) => (
             <React.Fragment key={obs.observationId}>
               <button
                 onClick={() => setSelectedObsIndex(idx)}
                 className={`px-1.5 py-0.5 rounded transition-colors ${
                   selectedObsIndex === idx
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
                 title={`Click to view ${obs.label}`}
               >
                 {obs.changeAreaSqM} m²
               </button>
               {idx < timeline.length - 1 && (
-                <span className="text-slate-400 font-normal">→</span>
+                <span className="text-slate-300 font-normal">→</span>
               )}
             </React.Fragment>
           ))}
@@ -63,12 +63,11 @@ export const TemporalProgress: React.FC<TemporalProgressProps> = ({ timeline }) 
 
       {/* Timeline Stepper */}
       <div className="relative pt-2">
-        <div className="absolute top-5 left-3 right-3 h-0.5 bg-slate-800" />
+        <div className="absolute top-5 left-3 right-3 h-0.5 bg-slate-200" />
         <div className="grid grid-cols-4 gap-2 relative">
           {timeline.map((obs, index) => {
             const isSelected = selectedObsIndex === index;
             const isLast = index === timeline.length - 1;
-            const areaPct = Math.round((obs.changeAreaSqM / maxArea) * 100);
 
             return (
               <button
@@ -80,10 +79,10 @@ export const TemporalProgress: React.FC<TemporalProgressProps> = ({ timeline }) 
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold z-10 transition-all ${
                     isSelected
-                      ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/20 scale-110'
+                      ? 'bg-blue-600 text-white ring-4 ring-blue-500/20 scale-110 shadow-sm'
                       : isLast
                       ? 'bg-rose-600 text-white ring-2 ring-rose-400/40'
-                      : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'
+                      : 'bg-white border border-slate-300 text-slate-600 group-hover:bg-slate-100'
                   }`}
                 >
                   {index + 1}
@@ -92,56 +91,35 @@ export const TemporalProgress: React.FC<TemporalProgressProps> = ({ timeline }) 
                 {/* Date / Label */}
                 <span
                   className={`mt-2 text-[10px] font-semibold leading-tight ${
-                    isSelected ? 'text-amber-300' : 'text-slate-400'
+                    isSelected ? 'text-blue-700 font-bold' : 'text-slate-500'
                   }`}
                 >
                   {obs.label}
                 </span>
 
-                {/* Footprint Indicator */}
                 <span className="text-[9px] font-mono text-slate-400 mt-0.5">
-                  {obs.changeAreaSqM} m²
+                  {obs.date}
                 </span>
-
-                {/* Mini Bar */}
-                <div className="w-full h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      isSelected ? 'bg-amber-400' : 'bg-slate-600'
-                    }`}
-                    style={{ width: `${Math.max(areaPct, 6)}%` }}
-                  />
-                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Selected Observation Detail Card */}
+      {/* Active Selected Observation Detail Card */}
       {activeObs && (
-        <div className="mt-3 p-2.5 rounded bg-slate-900/90 border border-slate-800 text-xs space-y-1">
+        <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-200">
-              Observation #{selectedObsIndex + 1} ({activeObs.date})
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-              {activeObs.stageBadge}
+            <span className="font-bold text-slate-900">{activeObs.stageBadge}</span>
+            <span className="font-mono text-[11px] font-bold text-blue-600">
+              {activeObs.changeAreaSqM} m² ({((activeObs.changeAreaSqM) / 10000).toFixed(2)} ha)
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
+          <p className="text-[11px] text-slate-600 leading-relaxed">
             {activeObs.description}
           </p>
         </div>
       )}
-
-      {/* Innovation Note */}
-      <div className="flex items-start space-x-2 pt-1 text-[10px] text-slate-400 italic">
-        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-        <span>
-          <strong>Key Insight:</strong> Ongoing temporal progression over 4 consecutive satellite passes differentiates active construction from temporary seasonal vegetation variations.
-        </span>
-      </div>
     </div>
   );
 };
