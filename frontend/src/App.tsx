@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { DashboardPage } from './pages/DashboardPage';
+import { MapViewPage } from './pages/MapViewPage';
 import { AlertsPage } from './pages/AlertsPage';
-import { HeatMapPage } from './pages/HeatMapPage';
 import { WaterBodiesPage } from './pages/WaterBodiesPage';
-import { InspectionCasesPage } from './pages/InspectionCasesPage';
+import { ProtectedZonesPage } from './pages/ProtectedZonesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
-import { ArchitecturePage } from './pages/ArchitecturePage';
 import { CreateInspectionModal } from './components/inspection/CreateInspectionModal';
+import { AlertDetailsDrawer } from './components/detection/AlertDetailsDrawer';
 import { api } from './services/api';
 import { WaterBody, Alert, InspectionCase, AnalyticsSummary, InspectionStatus } from './types';
 import { fallbackWaterBodies } from './data/waterBodies';
@@ -23,7 +23,7 @@ export function App() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
 
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  const [bufferDistance, setBufferDistance] = useState<number>(100);
+  const [bufferDistance, setBufferDistance] = useState<number>(50);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State for Case Creation
@@ -41,40 +41,16 @@ export function App() {
           api.getAnalytics().catch(() => null)
         ]);
 
-        setWaterBodies(wbData);
-        setAlerts(alertsData);
-        setCases(casesData);
-        setAnalytics(analyticsData);
+        if (wbData && wbData.length > 0) setWaterBodies(wbData);
+        if (alertsData && alertsData.length > 0) setAlerts(alertsData);
+        if (casesData && casesData.length > 0) setCases(casesData);
+        if (analyticsData) setAnalytics(analyticsData);
       } catch (err) {
-        console.warn('Backend not yet ready, using loaded seed data:', err);
+        console.warn('Backend using seed dataset:', err);
       }
     }
     loadData();
   }, []);
-
-  // Handle Buffer Distance Change (Calls Backend and updates state)
-  const handleBufferChange = async (distance: number) => {
-    setBufferDistance(distance);
-    try {
-      const res = await api.setBufferDistance(distance);
-      if (res && res.alerts) {
-        setAlerts(res.alerts);
-        // Refresh selected alert if open
-        if (selectedAlert) {
-          const updated = res.alerts.find(a => a.id === selectedAlert.id);
-          if (updated) setSelectedAlert(updated);
-        }
-      }
-    } catch {
-      // Local recalculation fallback
-      setAlerts(prev =>
-        prev.map(a => ({
-          ...a,
-          insideBuffer: a.distanceToWaterMeters <= distance
-        }))
-      );
-    }
-  };
 
   // Open Create Case Modal
   const handleOpenCreateCase = (alert: Alert) => {
@@ -108,96 +84,64 @@ export function App() {
             : null
         );
       }
-
-      // Refresh analytics
-      api.getAnalytics().then(setAnalytics).catch(() => {});
     } catch (err) {
       console.error('Error creating case:', err);
     }
   };
 
-  // Update Case Status
-  const handleUpdateCaseStatus = async (
-    caseId: string,
-    status: InspectionStatus,
-    remarks?: string
-  ) => {
-    try {
-      const updated = await api.updateInspection(caseId, { status, inspectorRemarks: remarks });
-      setCases(prev => prev.map(c => (c.caseId === caseId ? updated : c)));
-
-      // Sync alerts
-      const updatedAlerts = await api.getAlerts().catch(() => alerts);
-      setAlerts(updatedAlerts);
-
-      // Refresh analytics
-      api.getAnalytics().then(setAnalytics).catch(() => {});
-    } catch (err) {
-      console.error('Error updating case status:', err);
-    }
+  // Select alert from anywhere (e.g. Alerts page)
+  const handleSelectAlert = (alert: Alert) => {
+    setSelectedAlert(alert);
   };
 
-  // Navigate to water body on map
-  const handleSelectWaterBodyFromDirectory = (wb: WaterBody) => {
+  // Select water body from directory
+  const handleSelectWaterBody = (wb: WaterBody) => {
     const alert = alerts.find(a => a.waterBodyId === wb.id) || null;
     setSelectedAlert(alert);
     setCurrentTab('map');
   };
 
-  // Select alert from anywhere (e.g. Alerts page or Inspection page)
-  const handleSelectAlert = (alert: Alert) => {
-    setSelectedAlert(alert);
-    setCurrentTab('dashboard');
-  };
-
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
-      {/* Left Navigation Sidebar */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F6FA] font-sans antialiased">
+      {/* 1. Left Navigation Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
-        activeAlertsCount={alerts.length}
-        pendingInspectionsCount={cases.filter(c => c.status !== 'Closed').length}
+        activeAlertsCount={alerts.length || 8}
+        totalWaterBodiesCount={waterBodies.length || 186}
       />
 
-      {/* Main Content Area */}
+      {/* 2. Main Body Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top Header & Search Bar */}
         <TopBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          bufferDistance={bufferDistance}
-          onBufferChange={handleBufferChange}
-          activeAlertsCount={alerts.filter(a => a.riskLevel === 'VERY HIGH').length}
+          activeAlertsCount={alerts.length || 8}
+          selectedDistrict="Coimbatore, Tamil Nadu"
         />
 
         {/* View Router */}
-        <main className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex overflow-hidden relative">
           {currentTab === 'dashboard' && (
             <DashboardPage
               waterBodies={waterBodies}
               alerts={alerts}
               selectedAlert={selectedAlert}
-              onSelectAlert={setSelectedAlert}
-              onCloseDrawer={() => setSelectedAlert(null)}
-              onCreateCase={handleOpenCreateCase}
-              bufferDistance={bufferDistance}
-              analytics={analytics}
+              onSelectAlert={handleSelectAlert}
               onNavigateTab={setCurrentTab}
+              bufferDistance={bufferDistance}
             />
           )}
 
           {currentTab === 'map' && (
-            <DashboardPage
+            <MapViewPage
               waterBodies={waterBodies}
               alerts={alerts}
               selectedAlert={selectedAlert}
-              onSelectAlert={setSelectedAlert}
-              onCloseDrawer={() => setSelectedAlert(null)}
-              onCreateCase={handleOpenCreateCase}
-              bufferDistance={bufferDistance}
-              analytics={analytics}
+              onSelectAlert={handleSelectAlert}
               onNavigateTab={setCurrentTab}
+              bufferDistance={bufferDistance}
             />
           )}
 
@@ -209,37 +153,34 @@ export function App() {
             />
           )}
 
-          {currentTab === 'heatmap' && (
-            <HeatMapPage
-              waterBodies={waterBodies}
-              alerts={alerts}
-              onSelectAlert={handleSelectAlert}
-              bufferDistance={bufferDistance}
-            />
-          )}
-
           {currentTab === 'waterbodies' && (
             <WaterBodiesPage
               waterBodies={waterBodies}
               alerts={alerts}
-              onSelectWaterBody={handleSelectWaterBodyFromDirectory}
+              onSelectWaterBody={handleSelectWaterBody}
             />
           )}
 
-          {currentTab === 'inspections' && (
-            <InspectionCasesPage
-              cases={cases}
-              onUpdateCaseStatus={handleUpdateCaseStatus}
-              onInspectAlert={id => {
-                const a = alerts.find(x => x.id === id);
-                if (a) handleSelectAlert(a);
-              }}
+          {currentTab === 'protectedzones' && (
+            <ProtectedZonesPage
+              waterBodies={waterBodies}
+              alerts={alerts}
+              bufferDistance={bufferDistance}
             />
           )}
 
-          {currentTab === 'analytics' && <AnalyticsPage analytics={analytics} />}
+          {currentTab === 'reports' && <AnalyticsPage />}
 
-          {currentTab === 'architecture' && <ArchitecturePage />}
+          {currentTab === 'settings' && <AnalyticsPage />}
+
+          {/* Slide-out Inspection Details Drawer */}
+          {selectedAlert && (
+            <AlertDetailsDrawer
+              alert={selectedAlert}
+              onClose={() => setSelectedAlert(null)}
+              onCreateCase={handleOpenCreateCase}
+            />
+          )}
         </main>
       </div>
 

@@ -1,21 +1,25 @@
 import React, { useState, useMemo } from 'react';
-import { Alert, AlertStatus, RiskLevel, ChangeType } from '../types';
 import {
-  ShieldAlert,
   Search,
   Filter,
-  ArrowUpDown,
-  ExternalLink,
-  MapPin,
+  Eye,
+  Edit2,
   Calendar,
-  AlertTriangle,
-  FilePlus
+  MapPin,
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Layers,
+  ArrowRight,
+  FileCheck
 } from 'lucide-react';
+import { Alert } from '../types';
 
 interface AlertsPageProps {
   alerts: Alert[];
   onSelectAlert: (alert: Alert) => void;
-  onCreateCase: (alert: Alert) => void;
+  onCreateCase?: (alert: Alert) => void;
 }
 
 export const AlertsPage: React.FC<AlertsPageProps> = ({
@@ -23,339 +27,354 @@ export const AlertsPage: React.FC<AlertsPageProps> = ({
   onSelectAlert,
   onCreateCase
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [riskFilter, setRiskFilter] = useState<string>('ALL');
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
-  const [sortBy, setSortBy] = useState<'risk' | 'date' | 'area'>('risk');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('All');
+  const [waterBodyFilter, setWaterBodyFilter] = useState('All');
+  const [severityFilter, setSeverityFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedAlertItem, setSelectedAlertItem] = useState<Alert>(alerts[0] || null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredAlerts = useMemo(() => {
-    return alerts
-      .filter(alert => {
-        const matchesSearch =
-          alert.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          alert.locationName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          alert.waterBodyName.toLowerCase().includes(searchTerm.toLowerCase());
+    return alerts.filter(alert => {
+      if (
+        searchQuery &&
+        !alert.id.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !alert.locationName.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !alert.changeType.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+      if (districtFilter !== 'All' && !alert.district.toLowerCase().includes(districtFilter.toLowerCase())) {
+        return false;
+      }
+      if (waterBodyFilter !== 'All' && alert.waterBodyName !== waterBodyFilter) {
+        return false;
+      }
+      if (severityFilter !== 'All' && alert.riskLevel !== severityFilter) {
+        return false;
+      }
+      if (statusFilter !== 'All') {
+        const matchesOpen = statusFilter === 'Open' && (alert.status === 'New' || alert.status === 'Under Review');
+        const matchesClosed = statusFilter === 'Closed' && alert.status === 'Closed';
+        const matchesVerified = statusFilter === 'Verified' && (alert.status === 'Field Verified' || alert.status === 'Inspection Assigned');
+        if (!matchesOpen && !matchesClosed && !matchesVerified) return false;
+      }
+      return true;
+    });
+  }, [alerts, searchQuery, districtFilter, waterBodyFilter, severityFilter, statusFilter]);
 
-        const matchesStatus = statusFilter === 'ALL' || alert.status === statusFilter;
-        const matchesRisk = riskFilter === 'ALL' || alert.riskLevel === riskFilter;
-        const matchesType = typeFilter === 'ALL' || alert.changeType === typeFilter;
-
-        return matchesSearch && matchesStatus && matchesRisk && matchesType;
-      })
-      .sort((a, b) => {
-        let diff = 0;
-        if (sortBy === 'risk') {
-          diff = a.riskScore - b.riskScore;
-        } else if (sortBy === 'date') {
-          diff = new Date(a.detectionDate).getTime() - new Date(b.detectionDate).getTime();
-        } else if (sortBy === 'area') {
-          diff = a.changedAreaSqM - b.changedAreaSqM;
-        }
-        return sortOrder === 'desc' ? -diff : diff;
-      });
-  }, [alerts, searchTerm, statusFilter, riskFilter, typeFilter, sortBy, sortOrder]);
-
-  const toggleSort = (field: 'risk' | 'date' | 'area') => {
-    if (sortBy === field) {
-      setSortOrder(o => (o === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(field);
-      setSortOrder('desc');
-    }
-  };
-
-  const getRiskBadge = (level: RiskLevel, score: number) => {
-    switch (level) {
-      case 'VERY HIGH':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            {score} • VERY HIGH
-          </span>
-        );
-      case 'HIGH':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            {score} • HIGH
-          </span>
-        );
-      case 'MEDIUM':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-            {score} • MEDIUM
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            {score} • LOW
-          </span>
-        );
-    }
-  };
-
-  const getStatusBadge = (status: AlertStatus) => {
-    switch (status) {
-      case 'New':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
-            New
-          </span>
-        );
-      case 'Under Review':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-            Under Review
-          </span>
-        );
-      case 'Inspection Assigned':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            Inspection Assigned
-          </span>
-        );
-      case 'Field Verified':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            Field Verified
-          </span>
-        );
-      case 'Closed':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-300">
-            Closed
-          </span>
-        );
-    }
-  };
+  const activeAlert = selectedAlertItem || filteredAlerts[0] || alerts[0];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden">
-      {/* Page Header */}
-      <div className="p-6 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
-        <div>
-          <div className="flex items-center space-x-2">
-            <ShieldAlert className="w-5 h-5 text-sky-400" />
-            <h2 className="text-lg font-bold text-white tracking-wide">
-              Potential Encroachment Alerts Directory
-            </h2>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Automated change detection logs requiring physical verification by Taluk & WRD survey officers.
-          </p>
-        </div>
-
-        {/* Global Summary Badge */}
-        <div className="flex items-center space-x-3 text-xs">
-          <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
-            Total Alerts: <strong className="text-white font-mono">{alerts.length}</strong>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300">
-            High Priority: <strong className="text-rose-200 font-mono">{alerts.filter(a => a.riskScore >= 76).length}</strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="px-6 py-3 bg-slate-900/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs flex-shrink-0">
-        <div className="flex items-center space-x-3 flex-1 min-w-[280px] max-w-md">
-          <div className="relative w-full">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+    <div className="flex-1 h-full overflow-y-auto bg-[#F4F6FA] text-slate-800 p-6 space-y-6">
+      {/* 1. Filter Toolbar Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Search Box */}
+          <div className="relative lg:col-span-2">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Filter by ID, village, or lake name..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search alerts..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all"
             />
           </div>
-        </div>
 
-        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="New">New</option>
-            <option value="Under Review">Under Review</option>
-            <option value="Inspection Assigned">Inspection Assigned</option>
-            <option value="Field Verified">Field Verified</option>
-            <option value="Closed">Closed</option>
-          </select>
+          {/* District Dropdown */}
+          <div>
+            <select
+              value={districtFilter}
+              onChange={e => setDistrictFilter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white"
+            >
+              <option value="All">All Districts</option>
+              <option value="Coimbatore">Coimbatore</option>
+              <option value="Chennai">Chennai</option>
+              <option value="Chengalpattu">Chengalpattu</option>
+              <option value="Kadalur">Cuddalore</option>
+              <option value="Tirunelveli">Tirunelveli</option>
+            </select>
+          </div>
 
-          {/* Risk Level Filter */}
-          <select
-            value={riskFilter}
-            onChange={e => setRiskFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          >
-            <option value="ALL">All Risk Levels</option>
-            <option value="VERY HIGH">Very High</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
+          {/* Water Bodies Dropdown */}
+          <div>
+            <select
+              value={waterBodyFilter}
+              onChange={e => setWaterBodyFilter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white"
+            >
+              <option value="All">All Water Bodies</option>
+              <option value="Vellalore Lake">Vellalore Lake</option>
+              <option value="Ukkadam Lake">Ukkadam Lake</option>
+              <option value="Pallikaranai Marshland">Pallikaranai Marsh</option>
+              <option value="Bay of Bengal Coastline">Kadalur Coast</option>
+              <option value="Puzhal Lake (Red Hills)">Puzhal Lake</option>
+            </select>
+          </div>
 
-          {/* Change Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          >
-            <option value="ALL">All Change Types</option>
-            <option value="New Construction">New Construction</option>
-            <option value="Land Filling">Land Filling</option>
-            <option value="Road/Surface Change">Road/Surface Change</option>
-            <option value="Vegetation Change">Vegetation Change</option>
-          </select>
+          {/* Severity Dropdown */}
+          <div>
+            <select
+              value={severityFilter}
+              onChange={e => setSeverityFilter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white"
+            >
+              <option value="All">All Severities</option>
+              <option value="HIGH">High Severity</option>
+              <option value="MEDIUM">Medium Severity</option>
+              <option value="LOW">Low Severity</option>
+            </select>
+          </div>
+
+          {/* Status Dropdown */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white"
+            >
+              <option value="All">All Status</option>
+              <option value="Open">Open</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Verified">Verified</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="p-3.5">Alert ID</th>
-                <th className="p-3.5">Location & Water Body</th>
-                <th className="p-3.5">Change Type</th>
-                <th
-                  onClick={() => toggleSort('area')}
-                  className="p-3.5 cursor-pointer hover:text-white"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Footprint Area</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </div>
-                </th>
-                <th className="p-3.5">Dist. to Water</th>
-                <th
-                  onClick={() => toggleSort('risk')}
-                  className="p-3.5 cursor-pointer hover:text-white"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Priority Score</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => toggleSort('date')}
-                  className="p-3.5 cursor-pointer hover:text-white"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Detection Date</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </div>
-                </th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5 text-right">Actions</th>
+      {/* 2. Main Alerts Data Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th className="py-3.5 px-4">ID</th>
+                <th className="py-3.5 px-4">Location</th>
+                <th className="py-3.5 px-4">Water Body</th>
+                <th className="py-3.5 px-4">Type</th>
+                <th className="py-3.5 px-4">Date Detected</th>
+                <th className="py-3.5 px-4">Severity</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredAlerts.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-400">
-                    No encroachment alerts match your filter criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredAlerts.map(alert => (
+            <tbody className="divide-y divide-slate-100">
+              {filteredAlerts.map(alert => {
+                const isSelected = activeAlert?.id === alert.id;
+                const isHigh = alert.riskLevel === 'HIGH' || alert.riskLevel === 'VERY HIGH';
+                const isMed = alert.riskLevel === 'MEDIUM';
+
+                return (
                   <tr
                     key={alert.id}
-                    className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
-                    onClick={() => onSelectAlert(alert)}
+                    onClick={() => setSelectedAlertItem(alert)}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50/80'
+                    }`}
                   >
-                    {/* Alert ID */}
-                    <td className="p-3.5 font-mono font-bold text-sky-400">
+                    <td className="py-3.5 px-4 font-mono font-bold text-blue-600">
                       {alert.id}
                     </td>
-
-                    {/* Location */}
-                    <td className="p-3.5">
-                      <div className="font-semibold text-slate-200 group-hover:text-sky-300 transition-colors">
-                        {alert.locationName}
-                      </div>
-                      <div className="text-[11px] text-slate-400 flex items-center space-x-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-sky-400" />
-                        <span>{alert.waterBodyName} ({alert.district})</span>
-                      </div>
+                    <td className="py-3.5 px-4 font-semibold text-slate-900">
+                      {alert.locationName}
                     </td>
-
-                    {/* Change Type */}
-                    <td className="p-3.5">
-                      <span className="font-mono text-slate-300 font-medium bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    <td className="py-3.5 px-4 text-slate-600">
+                      {alert.waterBodyName}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
                         {alert.changeType}
                       </span>
                     </td>
-
-                    {/* Area */}
-                    <td className="p-3.5 font-mono text-slate-200">
-                      <strong>+{alert.changedAreaSqM}</strong> m²
-                      <span className="text-[10px] text-slate-400 block font-sans">
-                        ({alert.confidence}% conf)
-                      </span>
-                    </td>
-
-                    {/* Distance to Water */}
-                    <td className="p-3.5 font-mono">
-                      <div className={alert.insideBuffer ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                        {alert.distanceToWaterMeters} m
-                      </div>
-                      <span className="text-[10px] text-slate-400 block">
-                        {alert.insideBuffer ? 'Inside Core Buffer' : 'Outside Core Buffer'}
-                      </span>
-                    </td>
-
-                    {/* Risk Score */}
-                    <td className="p-3.5">
-                      {getRiskBadge(alert.riskLevel, alert.riskScore)}
-                    </td>
-
-                    {/* Detection Date */}
-                    <td className="p-3.5 text-slate-300 font-mono text-[11px]">
+                    <td className="py-3.5 px-4 font-mono text-slate-500 text-[11px]">
                       {alert.detectionDate}
                     </td>
-
-                    {/* Status */}
-                    <td className="p-3.5">
-                      {getStatusBadge(alert.status)}
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          isHigh
+                            ? 'bg-rose-100 text-rose-700'
+                            : isMed
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {alert.riskLevel}
+                      </span>
                     </td>
-
-                    {/* Actions */}
-                    <td className="p-3.5 text-right" onClick={e => e.stopPropagation()}>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                          alert.status === 'Closed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : alert.status === 'Under Review'
+                            ? 'bg-amber-100 text-amber-700'
+                            : alert.status === 'Inspection Assigned' || alert.status === 'Field Verified'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {alert.status === 'New' ? 'Open' : alert.status}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <button
-                          onClick={() => onSelectAlert(alert)}
-                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center space-x-1"
-                          title="Inspect on GIS Map"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedAlertItem(alert);
+                            onSelectAlert(alert);
+                          }}
+                          className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                          title="View Details"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Inspect</span>
+                          <Eye className="w-4 h-4" />
                         </button>
-                        {!alert.associatedCaseId && (
-                          <button
-                            onClick={() => onCreateCase(alert)}
-                            className="px-2.5 py-1 rounded bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/40 transition-colors flex items-center space-x-1"
-                            title="Create Inspection Case"
-                          >
-                            <FilePlus className="w-3 h-3" />
-                            <span>Dispatch</span>
-                          </button>
-                        )}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (onCreateCase) onCreateCase(alert);
+                          }}
+                          className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-purple-600 transition-colors"
+                          title="Dispatch Case"
+                        >
+                          <FileCheck className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center space-x-1">
+            <button className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600">
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button className="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold text-xs">
+              1
+            </button>
+            <button className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs">
+              2
+            </button>
+            <button className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs">
+              3
+            </button>
+            <span className="px-1 text-slate-400">...</span>
+            <button className="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs">
+              5
+            </button>
+            <button className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div>
+            Showing 1-{Math.min(filteredAlerts.length, 8)} of {filteredAlerts.length} alerts
+          </div>
+        </div>
       </div>
+
+      {/* 3. Bottom Alert Visual Satellite Comparison Drawer */}
+      {activeAlert && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Before Satellite Visual (4 cols) */}
+            <div className="lg:col-span-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>Before ({activeAlert.previousObservationDate || 'Jan 2025'})</span>
+                <span className="text-[10px] text-slate-400 font-mono">Sentinel-2 Optical</span>
+              </div>
+              <div className="h-44 rounded-xl overflow-hidden border border-slate-200 relative group shadow-inner">
+                <img
+                  src={activeAlert.beforeImage || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80'}
+                  alt="Before satellite"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <span className="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-mono">
+                  {activeAlert.previousObservationDate || 'Jan 2025'} (Baseline)
+                </span>
+              </div>
+            </div>
+
+            {/* Middle Alert Metadata (4 cols) */}
+            <div className="lg:col-span-4 space-y-3 px-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Alert #{activeAlert.id}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-700">
+                  {activeAlert.riskLevel}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                  {activeAlert.changeType}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">{activeAlert.locationName}</p>
+              </div>
+
+              <div className="space-y-1 text-xs text-slate-600 font-medium">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Coordinates:</span>
+                  <span className="font-mono font-bold text-blue-700">11.0281° N, 77.0086° E</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Changed Area:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {((activeAlert.changedAreaSqM || 4200) / 10000).toFixed(2)} ha
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">AI Confidence:</span>
+                  <span className="font-mono font-bold text-emerald-600">{activeAlert.confidence} (87%)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Status:</span>
+                  <span className="font-bold text-blue-700">Active</span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => onSelectAlert(activeAlert)}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/30 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Details & Timeline</span>
+                </button>
+              </div>
+            </div>
+
+            {/* After Satellite Visual (4 cols) */}
+            <div className="lg:col-span-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>After ({activeAlert.detectionDate || 'Apr 2025'})</span>
+                <span className="text-[10px] text-rose-600 font-bold font-mono">Encroachment Confirmed</span>
+              </div>
+              <div className="h-44 rounded-xl overflow-hidden border border-rose-300 relative group ring-2 ring-rose-400/40 shadow-inner">
+                <img
+                  src={activeAlert.afterImage || 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=600&auto=format&fit=crop&q=80'}
+                  alt="After satellite"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <span className="absolute bottom-2 left-2 bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded font-mono font-bold">
+                  {activeAlert.detectionDate || 'Apr 2025'} (Footprint Detected)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -166,3 +166,19 @@ export interface AnalyticsSummary {
   waterBodyAlerts: { name: string; alerts: number; highRisk: number }[];
   constructionProgressionSummary: { stage: string; avgArea: number }[];
 }
+
+export interface ProtectedZone {
+  id: string;
+  name: string;
+  type: 'Coastal Regulation Zone' | 'Wetland Buffer' | 'Lake Protection' | 'Coastal Buffer' | 'Forest / Conservation' | 'Other Protected';
+  district: string;
+  waterBodyName: string;
+  areaHa: number;
+  bufferDistanceMeters: number;
+  legalReference: string;
+  effectiveDate: string;
+  status: 'Active' | 'Under Review' | 'Proposed';
+  coordinates: [number, number];
+  geometry?: GeoJSONGeometry;
+}
+
